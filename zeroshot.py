@@ -8,7 +8,7 @@ Original file is located at
 """
 
 import torch
-from torch.utils.data import IterableDataset
+from torch.utils.data import IterableDataset, DataLoader
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 import json
