@@ -74,9 +74,9 @@ class WNUTDataset(torch.utils.data.Dataset):
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 tokenizer = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
 if args.pretrained is not None:
-    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=len(unique_tags))
+    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=3)
 else:
-    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=len(unique_tags))
+    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=3)
 
 model.to(device)
 
@@ -141,7 +141,7 @@ if not args.infer_only:
 else:
     with open(os.path.join(args.save_dir, 'labelmap.json')) as json_file:
         labelmap = json.load(json_file)
-        
+
 nlp = pipeline("ner", model=model, tokenizer=tokenizer)
 
 print(labelmap)
