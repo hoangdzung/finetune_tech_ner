@@ -2,6 +2,8 @@
 import torch
 from torch.utils.data import DataLoader 
 from transformers import AutoTokenizer, AutoModelForTokenClassification, AdamW
+from transformers import pipeline
+
 import numpy as np
 
 import re
@@ -12,6 +14,10 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--lr", type=float, default=5e-5)
+parser.add_argument("--epochs", type=int, default=10)
+parser.add_argument("--early_step", type=int, default=3)
 parser.add_argument("--save_dir")
 args = parser.parse_args()
 
@@ -37,7 +43,7 @@ def read_wnut(file_path):
     return token_docs, tag_docs
 
 texts, tags = read_wnut(args.data)
-
+print("There are {} sentences in the dataset".format(len(texts)))
 train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=.2)
 
 unique_tags = set(tag for doc in tags for tag in doc)
@@ -45,8 +51,8 @@ tag2id = {tag: id for id, tag in enumerate(unique_tags)}
 id2tag = {id: tag for tag, id in tag2id.items()}
 
 tokenizer = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
-train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True)
-val_encodings = tokenizer(val_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True)
+train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
+val_encodings = tokenizer(val_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
 
 def encode_tags(tags, encodings):
     labels = [[tag2id[tag] for tag in doc] for doc in tags]
@@ -88,11 +94,13 @@ model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivoca
 model.to(device)
 model.train()
 
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
-optim = AdamW(model.parameters(), lr=5e-5)
+optim = AdamW(model.parameters(), lr=args.lr)
 
-for epoch in range(3):
+best_loss = 10e10
+for epoch in range(args.epochs):
+    total_loss = 0
     for batch in tqdm(train_loader):
         optim.zero_grad()
         input_ids = batch['input_ids'].to(device)
@@ -101,6 +109,25 @@ for epoch in range(3):
         outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
         loss = outputs[0]
         loss.backward()
+        total_loss += loss.item()
         optim.step()
+    if total_loss < best_loss:
+        best_loss = total_loss
+        n_wo_progress = 0
+        model.save_pretrained(args.save_dir)
 
-model.save_pretrained(args.save_dir)
+    print("Epoch {}, current loss {}, best loss {}, #step without progress {}".format(epoch, total_loss, best_loss, n_wo_progress))
+
+    if n_wo_progress > args.early_step:
+        print("Early stop")
+        break
+
+model = AutoModelForTokenClassification.from_pretrained(args.save_dir)
+
+nlp = pipeline("ner", model=model, tokenizer=tokenizer)
+while(True):
+    example = input("Your sentence:")
+    if len(example)==0:
+        break
+    ner_results = nlp(example)
+    print(ner_results)
