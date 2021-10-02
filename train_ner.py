@@ -118,7 +118,8 @@ for epoch in range(args.epochs):
         best_loss = total_loss
         n_wo_progress = 0
         model.save_pretrained(args.save_dir)
-
+    else:
+        n_wo_progress+=1
     print("Epoch {}, current loss {}, best loss {}, #step without progress {}".format(epoch, total_loss, best_loss, n_wo_progress))
 
     if n_wo_progress > args.early_step:
