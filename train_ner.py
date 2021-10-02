@@ -145,16 +145,16 @@ if not args.infer_only:
         with open(os.path.join(args.save_dir, 'config.json')) as json_file:
             data = json.load(json_file)
             labelmap = {k:id2tag[v] for k,v in data["label2id"].items()}
+        print(labelmap)
+        with open(os.path.join(args.save_dir, 'labelmap.json'), 'w') as fp:
+            json.dump(labelmap, fp)
 
 elif not args.binary_label:
     with open(os.path.join(args.save_dir, 'labelmap.json')) as json_file:
         labelmap = json.load(json_file)
+    print(labelmap)
 
 nlp = pipeline("ner", model=model, tokenizer=tokenizer)
-
-print(labelmap)
-with open(os.path.join(args.save_dir, 'labelmap.json'), 'w') as fp:
-    json.dump(labelmap, fp)
 
 while(True):
     example = input("Your sentence:")
