@@ -141,12 +141,12 @@ if not args.infer_only:
 
     model = AutoModelForTokenClassification.from_pretrained(args.save_dir)
     model.eval()
-    if args.binary_label:
+    if not args.binary_label:
         with open(os.path.join(args.save_dir, 'config.json')) as json_file:
             data = json.load(json_file)
             labelmap = {k:id2tag[v] for k,v in data["label2id"].items()}
 
-elif args.binary_label:
+elif not args.binary_label:
     with open(os.path.join(args.save_dir, 'labelmap.json')) as json_file:
         labelmap = json.load(json_file)
 
