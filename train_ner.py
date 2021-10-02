@@ -11,6 +11,8 @@ from pathlib import Path
 from tqdm import tqdm 
 from sklearn.model_selection import train_test_split
 import argparse
+import json 
+import os 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
@@ -129,9 +131,18 @@ for epoch in range(args.epochs):
 model = AutoModelForTokenClassification.from_pretrained(args.save_dir)
 
 nlp = pipeline("ner", model=model, tokenizer=tokenizer)
+  
+with open(os.path.join(args.save_dir, 'config.json')) as json_file:
+    data = json.load(json_file)
+    labelmap = {k:id2tag[v] for k,v in data["label2id"].items()}
+
+print(labelmap)
+with open(os.path.join(args.save_dir, 'labelmap.json'), 'w') as fp:
+    json.dump(labelmap, fp)
+
 while(True):
     example = input("Your sentence:")
     if len(example)==0:
         break
     ner_results = nlp(example)
-    print(ner_results)
+    print([(ner_result['word'], labelmap[iner_result['entity']]) for ner_result in ner_results])
