@@ -22,10 +22,11 @@ parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--early_step", type=int, default=3)
 parser.add_argument("--save_dir")
 parser.add_argument("--pretrained")
+parser.add_argument("--binary_label", action="store_true")
 parser.add_argument("--infer_only", action="store_true")
 args = parser.parse_args()
 
-def read_wnut(file_path):
+def read_wnut(file_path, binary_label=True):
     file_path = Path(file_path)
 
     raw_text = file_path.read_text().strip()
@@ -37,6 +38,8 @@ def read_wnut(file_path):
         tags = []
         for line in doc.split('\n'):
             token, tag = line.split('\t')
+            if binary_label and tag=='I':
+                tag ='B'
             tokens.append(token)
             tags.append(tag)
         token_docs.append(tokens)
@@ -83,11 +86,11 @@ model.to(device)
 if not args.infer_only:
     model.train()
 
-    texts, tags = read_wnut(args.data)
+    texts, tags = read_wnut(args.data, args.binary_label)
     print("There are {} sentences in the dataset".format(len(texts)))
     train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=.2)
 
-    unique_tags = set(tag for doc in tags for tag in doc)
+    unique_tags = sorted(list(set(tag for doc in tags for tag in doc)))
     tag2id = {tag: id for id, tag in enumerate(unique_tags)}
     id2tag = {id: tag for tag, id in tag2id.items()}
 
@@ -153,4 +156,4 @@ while(True):
     if len(example)==0:
         break
     ner_results = nlp(example)
-    print([(ner_result['word'], labelmap[ner_result['entity']]) for ner_result in ner_results])
+    print([(ner_result['word'], labelmap[ner_result['entity']], ner_result['score']) for ner_result in ner_results])
