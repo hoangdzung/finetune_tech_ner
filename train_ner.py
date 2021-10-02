@@ -76,10 +76,14 @@ class WNUTDataset(torch.utils.data.Dataset):
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 tokenizer = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
-if args.pretrained is not None:
-    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=3)
+if args.binary_label:
+    NUM_LABELS=2
 else:
-    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=3)
+    NUM_LABELS=3
+if args.pretrained is not None:
+    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=NUM_LABELS)
+else:
+    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=NUM_LABELS)
 
 model.to(device)
 
