@@ -141,11 +141,12 @@ if not args.infer_only:
 
     model = AutoModelForTokenClassification.from_pretrained(args.save_dir)
     model.eval()
-    with open(os.path.join(args.save_dir, 'config.json')) as json_file:
-        data = json.load(json_file)
-        labelmap = {k:id2tag[v] for k,v in data["label2id"].items()}
+    if args.binary_label:
+        with open(os.path.join(args.save_dir, 'config.json')) as json_file:
+            data = json.load(json_file)
+            labelmap = {k:id2tag[v] for k,v in data["label2id"].items()}
 
-else:
+elif args.binary_label:
     with open(os.path.join(args.save_dir, 'labelmap.json')) as json_file:
         labelmap = json.load(json_file)
 
@@ -160,4 +161,7 @@ while(True):
     if len(example)==0:
         break
     ner_results = nlp(example)
-    print([(ner_result['word'], labelmap[ner_result['entity']], ner_result['score']) for ner_result in ner_results])
+    if args.binary_label:
+        print([(ner_result['word'], ner_result['entity'], ner_result['score']) for ner_result in ner_results])
+    else:
+        print([(ner_result['word'], labelmap[ner_result['entity']], ner_result['score']) for ner_result in ner_results])
