@@ -19,6 +19,7 @@ parser.add_argument("--lr", type=float, default=5e-5)
 parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--early_step", type=int, default=3)
 parser.add_argument("--save_dir")
+parser.add_argument("--pretrained")
 args = parser.parse_args()
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
@@ -88,8 +89,10 @@ train_encodings.pop("offset_mapping") # we don't want to pass this to the model
 val_encodings.pop("offset_mapping")
 train_dataset = WNUTDataset(train_encodings, train_labels)
 val_dataset = WNUTDataset(val_encodings, val_labels)
-
-model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=len(unique_tags))
+if args.pretrained is not None:
+    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=len(unique_tags))
+else:
+    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=len(unique_tags))
 
 model.to(device)
 model.train()
