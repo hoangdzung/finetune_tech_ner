@@ -155,9 +155,9 @@ if not args.infer_only:
         if n_wo_progress > args.early_step:
             print("Early stop")
             break
-    model = PhraseBertForTokenClassification.from_pretrained(args.save_dir)
+    model = PhraseBertForTokenClassification.from_pretrained(args.save_dir).to(device)
     model.eval()
-
+    
 while(True):
     example = input("Your sentence:")
     if len(example)==0:
@@ -171,5 +171,11 @@ while(True):
                 attention_mask=torch.tensor(encodings['attention_mask']).to(device),
                 phrase_mask=torch.tensor(phrase_masks).to(device))
     label_indices = np.argmax(outputs.logits.detach().to('cpu').numpy(),axis=2)[0]
-    tokens = tokenizer.convert_ids_to_tokens(encodings[0])
-    print(list(zip(tokens, label_indices)))
+    tokens = tokenizer.convert_ids_to_tokens(encodings['input_ids'][0])
+    phrase_mask = np.array(phrase_masks[0]).sum(0)
+    squeeze_label_indices = []
+    start_id=0
+    while(start_id<len(label_indices)):
+        squeeze_label_indices.append(label_indices[start_id])
+        start_id += phrase_mask[start_id]
+    print(list(zip(tokens, label_indices))[1:-1])
