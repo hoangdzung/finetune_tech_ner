@@ -5,6 +5,7 @@ from transformers import AutoTokenizer, AutoModelForTokenClassification, AdamW
 from transformers import BertForTokenClassification
 from transformers import pipeline
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
+from transformers.modeling_outputs import TokenClassifierOutput
 
 import numpy as np
 
