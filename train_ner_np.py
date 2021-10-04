@@ -65,6 +65,7 @@ class PhraseBertForTokenClassification(BertForTokenClassification):
                                 torch.matmul(
                                 torch.swapaxes(sequence_output, 1,2), phrase_mask.float()
                                 ), 2,1)
+            sequence_output=sequence_output/torch.unsqueeze(phrase_mask.sum(2),2)
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
 
