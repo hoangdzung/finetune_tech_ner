@@ -172,11 +172,10 @@ while(True):
                 attention_mask=torch.tensor(encodings['attention_mask']).to(device),
                 phrase_mask=torch.tensor(phrase_masks).to(device))
     label_indices = np.argmax(outputs.logits.detach().to('cpu').numpy(),axis=2)[0]
-    tokens = tokenizer.convert_ids_to_tokens(encodings['input_ids'][0])
-    phrase_mask = np.array(phrase_masks[0]).sum(0)
+    phrase_mask = np.array(phrase_masks[0]).sum(0).astype(int)
     squeeze_label_indices = []
     start_id=0
     while(start_id<len(label_indices)):
         squeeze_label_indices.append(label_indices[start_id])
         start_id += phrase_mask[start_id]
-    print(list(zip(tokens, label_indices))[1:-1])
+    print(list(zip(tokens, label_indices[1:-1])))
