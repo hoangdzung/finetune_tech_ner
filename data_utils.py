@@ -45,6 +45,8 @@ def read_mturk(file_path):
             for json_token in json_sen:
 
                 token = " ".join(json_token['tokens'])
+                if token=='\xa0':
+                    continue
                 tag = 'B' if len(set(json_token['indexes']).intersection(token_id)) >0 else 'O'
                 tokens.append(token.lower())
                 tags.append(tag)
