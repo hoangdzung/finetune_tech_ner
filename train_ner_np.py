@@ -155,7 +155,7 @@ if not args.infer_only:
         if n_wo_progress > args.early_step:
             print("Early stop")
             break
-    model = AutoModelForTokenClassification.from_pretrained(args.save_dir)
+    model = PhraseBertForTokenClassification.from_pretrained(args.save_dir)
     model.eval()
 
 while(True):
