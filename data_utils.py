@@ -41,7 +41,7 @@ def read_mturk(file_path):
     df = df[['Input.sentence','Answer.entity']]
     token_docs = []
     tag_docs = []
-    for _, row in df.iterrows():
+    for _, row in tqdm(df.iterrows(), desc="Read raw data..."):
         data = json.loads(row['Input.sentence'])
         token_id = list(map(int, row['Answer.entity'].split(",")))
         for json_sen in data:
@@ -76,7 +76,7 @@ def encode_tags_masks(tags, encodings, tag2id, masks=False):
     labels = [[tag2id[tag] for tag in doc] for doc in tags]
     encoded_labels = []
     encoded_masks = []
-    for doc_labels, doc_offset in zip(labels, encodings.offset_mapping):
+    for doc_labels, doc_offset in tqdm(zip(labels, encodings.offset_mapping),desc="Encode masks and labels"):
         # create an empty array of -100
         doc_enc_labels = np.ones(len(doc_offset),dtype=int) * -100
         arr_offset = np.array(doc_offset)

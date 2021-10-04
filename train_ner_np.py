@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, AutoModelForTokenClassification, AdamW
 from transformers import BertForTokenClassification
 from transformers import pipeline
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
 
 import numpy as np
 
