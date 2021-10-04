@@ -24,7 +24,7 @@ def read_wnut(file_path, binary_label=True):
             token, tag = line.split('\t')
             if binary_label and tag=='I':
                 tag ='B'
-            tokens.append(token)
+            tokens.append(token.lower())
             tags.append(tag)
         token_docs.append(tokens)
         tag_docs.append(tags)
@@ -46,7 +46,7 @@ def read_mturk(file_path):
 
                 token = " ".join(json_token['tokens'])
                 tag = 'B' if len(set(json_token['indexes']).intersection(token_id)) >0 else 'O'
-                tokens.append(token)
+                tokens.append(token.lower())
                 tags.append(tag)
             token_docs.append(tokens)
             tag_docs.append(tags)
@@ -122,11 +122,11 @@ def chunk_based_tokenize(sen):
         for token in chunk:
             if not token.is_stop and not prev_accepted:
                 start = token.i
-                id_map[start]=[token.text]
+                id_map[start]=[token.text.lower()]
                 prev_accepted=True
             elif not token.is_stop and prev_accepted:
                 id_map[token.i] = False
-                id_map[start].append(token.text)
+                id_map[start].append(token.text.lower())
                 prev_accepted=True
             elif token.is_stop and prev_accepted:
                 prev_accepted=False
@@ -134,7 +134,7 @@ def chunk_based_tokenize(sen):
     sen_data = []
     for token in doc:
         if token.i not in id_map:
-            sen_data.append(token.text)
+            sen_data.append(token.text.lower())
         elif id_map[token.i]:
             sen_data.append(' '.join(id_map[token.i]))
     return sen_data
