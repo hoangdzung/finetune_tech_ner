@@ -102,16 +102,20 @@ def encode_tags_masks(tags, encodings, tag2id, masks=False):
     labels = [[tag2id[tag] for tag in doc] for doc in tags]
     encoded_labels = []
     encoded_masks = []
-    for doc_labels, doc_offset in tqdm(zip(labels, encodings.offset_mapping),desc="Encode masks and labels"):
+    for idx, (doc_labels, doc_offset) in tqdm(enumerate(zip(labels, encodings.offset_mapping)),desc="Encode masks and labels"):
         # create an empty array of -100
         doc_enc_labels = np.ones(len(doc_offset),dtype=int) * -100
         arr_offset = np.array(doc_offset)
 
         # set labels whose first offset position is 0 and the second is not 0
-        doc_enc_labels[(arr_offset[:,0] == 0) & (arr_offset[:,1] != 0)] = doc_labels
-        encoded_labels.append(doc_enc_labels.tolist())
-        if masks:
-            encoded_masks.append(encode_mask(doc_offset))
+        try:
+            doc_enc_labels[(arr_offset[:,0] == 0) & (arr_offset[:,1] != 0)] = doc_labels
+        except:
+            print(idx) 
+        else:  
+            encoded_labels.append(doc_enc_labels.tolist())
+            if masks:
+                encoded_masks.append(encode_mask(doc_offset))
     if masks:
         return encoded_labels,encoded_masks 
     else:
