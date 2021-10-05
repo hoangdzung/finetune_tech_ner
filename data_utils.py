@@ -35,7 +35,33 @@ def read_wnut(file_path, binary_label=True):
         tag_docs.append(tags)
 
     return token_docs, tag_docs
-    
+
+def read_wnut_phrase(file_path):
+    file_path = Path(file_path)
+
+    raw_text = file_path.read_text().strip()
+    raw_docs = re.split(r'\n\t?\n', raw_text)
+    token_docs = []
+    tag_docs = []
+    for doc in raw_docs:
+        tokens = []
+        tags = []
+        sub_tokens = []
+        for line in doc.split('\n'):
+            token, tag = line.split('\t')
+            if tag == 'O':
+                if len(sub_tokens) > 0:
+                    tokens.append(" ".join(sub_tokens))
+                    tags.append("B")
+                tokens.append(token.lower())
+                tags.append(tag)
+            else:
+                sub_tokens.append(token.lower())
+        token_docs.append(tokens)
+        tag_docs.append(tags)
+
+    return token_docs, tag_docs
+
 def read_mturk(file_path):
     df = pd.read_csv(file_path)
     df = df[['Input.sentence','Answer.entity']]

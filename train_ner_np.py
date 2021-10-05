@@ -18,7 +18,7 @@ import json
 import pandas as pd
 import os 
 
-from data_utils import read_mturk, encode_tags_masks, encode_mask, MturkDataset, chunk_based_tokenize
+from data_utils import read_mturk, encode_tags_masks, encode_mask, MturkDataset, chunk_based_tokenize,read_wnut_phrase
  
 
 class PhraseBertForTokenClassification(BertForTokenClassification):
@@ -102,6 +102,7 @@ parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--early_step", type=int, default=3)
 parser.add_argument("--save_dir")
 parser.add_argument("--pretrained")
+parser.add_argument("--mturk", action="store_true")
 parser.add_argument("--infer_only", action="store_true")
 args = parser.parse_args()
 
@@ -117,7 +118,10 @@ model.to(device)
 
 if not args.infer_only:
     model.train()
-    texts, tags = read_mturk(args.data)
+    if args.mturk:
+        texts, tags = read_mturk(args.data)
+    else:
+        texts, tags = read_wnut_phrase(args.data)
     print("There are {} sentences in the dataset".format(len(texts)))
     
     unique_tags = sorted(list(set(tag for doc in tags for tag in doc)))
