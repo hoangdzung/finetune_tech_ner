@@ -137,9 +137,9 @@ id2tag = {id: tag for tag, id in tag2id.items()}
 train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
 val_encodings = tokenizer(val_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
 test_encodings = tokenizer(test_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
-train_labels = encode_tags_masks(tags, train_encodings,tag2id,masks=False)
-val_labels = encode_tags_masks(tags, val_encodings,tag2id,masks=False)
-test_labels = encode_tags_masks(tags, test_encodings,tag2id,masks=False)
+train_labels = encode_tags_masks(train_tags, train_encodings,tag2id,masks=False)
+val_labels = encode_tags_masks(val_tags, val_encodings,tag2id,masks=False)
+test_labels = encode_tags_masks(test_tags, test_encodings,tag2id,masks=False)
 
 train_encodings.pop("offset_mapping") 
 val_encodings.pop("offset_mapping") 
