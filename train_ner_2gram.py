@@ -95,7 +95,6 @@ def evaluate(model, dataloader, ngram=1):
     for batch in tqdm(dataloader):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
-        phrase_mask = batch['phrase_mask'].to(device)
         labels = batch['labels'].to(device)
         outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=ngram)
         label_indices = torch.argmax(outputs.logits,axis=2)
@@ -111,7 +110,10 @@ parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--early_step", type=int, default=3)
 parser.add_argument("--save_dir")
 parser.add_argument("--pretrained")
+parser.add_argument("--test_frac",type=float, default=0.2)
+parser.add_argument("--val_frac",type=float, default=0.2)
 parser.add_argument("--ngram", type=int, default=1)
+parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
 args = parser.parse_args()
 
@@ -127,8 +129,8 @@ model.to(device)
 
 texts, tags = read_wnut(args.data)
 print("There are {} sentences in the dataset".format(len(texts)))
-train_texts, test_texts, train_tags, test_tags = train_test_split(texts, tags, test_size=.2,random_state=123)
-train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.25,random_state=123)
+train_texts, test_texts, train_tags, test_tags = train_test_split(texts, tags, test_size=args.test_frac,random_state=args.seed)
+train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=args.val_frac/(1-args.test_frac),random_state=args.seed)
 
 unique_tags = sorted(list(set(tag for doc in tags for tag in doc)))
 tag2id = {tag: id for id, tag in enumerate(unique_tags)}
