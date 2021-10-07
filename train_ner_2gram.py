@@ -18,7 +18,7 @@ import json
 import pandas as pd
 import os 
 from sklearn.metrics import f1_score,accuracy_score
-from data_utils import read_mturk, encode_tags_masks, encode_mask, WNUTDataset, chunk_based_tokenize,read_wnut_phrase
+from data_utils import read_wnut, WNUTDataset,encode_tags_masks
  
 
 class NGramBertForTokenClassification(BertForTokenClassification):
@@ -37,7 +37,8 @@ class NGramBertForTokenClassification(BertForTokenClassification):
         labels=None,
         output_attentions=None,
         output_hidden_states=None,
-        return_dict=None
+        return_dict=None,
+        ngram=1
         ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
@@ -61,7 +62,8 @@ class NGramBertForTokenClassification(BertForTokenClassification):
         sequence_output = outputs[0]
         sequence_output = self.dropout(sequence_output)
         logits = self.classifier(sequence_output)
-        logits = (logits+ torch.roll(logits, -1, 0))/2
+        if ngram>1:
+            logits = (logits+ torch.roll(logits, -1, 0))/2
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
@@ -87,7 +89,7 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             attentions=outputs.attentions,
         )
 
-def evaluate(model, dataloader):
+def evaluate(model, dataloader, ngram=1):
     model.eval()
     true_labels, pred_labels = [], []
     for batch in tqdm(dataloader):
@@ -95,7 +97,7 @@ def evaluate(model, dataloader):
         attention_mask = batch['attention_mask'].to(device)
         phrase_mask = batch['phrase_mask'].to(device)
         labels = batch['labels'].to(device)
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels,, ngram=ngram)
         label_indices = torch.argmax(outputs.logits,axis=2)
         true_labels += labels[labels!=-100].cpu().numpy().tolist()
         pred_labels += label_indices[labels!=-100].detach().cpu().numpy().tolist()
@@ -109,6 +111,7 @@ parser.add_argument("--epochs", type=int, default=10)
 parser.add_argument("--early_step", type=int, default=3)
 parser.add_argument("--save_dir")
 parser.add_argument("--pretrained")
+parser.add_argument("--ngram", type=int, default=1)
 parser.add_argument("--mturk", action="store_true")
 args = parser.parse_args()
 
@@ -122,11 +125,7 @@ else:
 
 model.to(device)
 
-model.train()
-if args.mturk:
-    texts, tags = read_mturk(args.data)
-else:
-    texts, tags = read_wnut_phrase(args.data)
+texts, tags = read_wnut(args.data)
 print("There are {} sentences in the dataset".format(len(texts)))
 train_texts, test_texts, train_tags, test_tags = train_test_split(texts, tags, test_size=.2,random_state=123)
 train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.25,random_state=123)
@@ -138,9 +137,9 @@ id2tag = {id: tag for tag, id in tag2id.items()}
 train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
 val_encodings = tokenizer(val_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
 test_encodings = tokenizer(test_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
-train_labels, train_masks = encode_tags_masks(tags, train_encodings,tag2id,masks=False)
-val_labels, val_masks = encode_tags_masks(tags, val_encodings,tag2id,masks=False)
-test_labels, test_masks = encode_tags_masks(tags, test_encodings,tag2id,masks=False)
+train_labels = encode_tags_masks(tags, train_encodings,tag2id,masks=False)
+val_labels = encode_tags_masks(tags, val_encodings,tag2id,masks=False)
+test_labels = encode_tags_masks(tags, test_encodings,tag2id,masks=False)
 
 train_encodings.pop("offset_mapping") 
 val_encodings.pop("offset_mapping") 
@@ -157,6 +156,7 @@ optim = AdamW(model.parameters(), lr=args.lr)
 
 best_val_f1 = 0
 for epoch in range(args.epochs):
+    model.train()
     total_loss = 0
     for batch in tqdm(train_loader):
         optim.zero_grad()
@@ -164,12 +164,13 @@ for epoch in range(args.epochs):
         attention_mask = batch['attention_mask'].to(device)
         phrase_mask = batch['phrase_mask'].to(device)
         labels = batch['labels'].to(device)
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=args.ngram)
         loss = outputs[0]
         loss.backward()
         total_loss += loss.item()
         optim.step()
-        val_f1, val_acc = evaluate(model, val_loader)
+    
+    val_f1, val_acc = evaluate(model, val_loader, args.ngram)
 
     if val_f1 > best_val_f1:
         best_val_f1 = val_f1
@@ -185,6 +186,6 @@ for epoch in range(args.epochs):
 
 model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
 
-test_f1, test_acc = evaluate(model, test_loader)
+test_f1, test_acc = evaluate(model, test_loader, args.ngram)
 print(test_f1, test_acc)
     
