@@ -8,12 +8,12 @@ import json
 
 from spacy.lang.en.stop_words import STOP_WORDS
 from tqdm import tqdm
-try:
-    nlp = spacy.load("en_core_web_sm")
-    print("en_core_web_sm loaded")
-except:
-    nlp = spacy.load("en_core_web_trf")
-    print("en_core_web_trf loaded")
+# try:
+#     nlp = spacy.load("en_core_web_sm")
+#     print("en_core_web_sm loaded")
+# except:
+#     nlp = spacy.load("en_core_web_trf")
+#     print("en_core_web_trf loaded")
 
 def read_wnut(file_path, binary_label=True):
     file_path = Path(file_path)

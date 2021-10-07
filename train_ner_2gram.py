@@ -162,7 +162,6 @@ for epoch in range(args.epochs):
         optim.zero_grad()
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
-        phrase_mask = batch['phrase_mask'].to(device)
         labels = batch['labels'].to(device)
         outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=args.ngram)
         loss = outputs[0]
