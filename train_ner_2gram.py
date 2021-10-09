@@ -104,6 +104,7 @@ def evaluate(model, dataloader, ngram=1):
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
+parser.add_argument("--test")
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--lr", type=float, default=5e-5)
 parser.add_argument("--epochs", type=int, default=10)
@@ -117,6 +118,9 @@ parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
 args = parser.parse_args()
 
+torch.manual_seed(args.seed)
+torch.cuda.manual_seed(args.seed)
+
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 tokenizer = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
 
@@ -127,10 +131,24 @@ else:
 
 model.to(device)
 
-texts, tags = read_wnut(args.data)
+if args.data.endswith('pkl'):
+    import pickle
+    texts, tags = pickle.load(open(args.data,'rb'))
+else:
+    texts, tags = read_wnut(args.data)
 print("There are {} sentences in the dataset".format(len(texts)))
-train_texts, test_texts, train_tags, test_tags = train_test_split(texts, tags, test_size=args.test_frac,random_state=args.seed)
-train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=args.val_frac/(1-args.test_frac),random_state=args.seed)
+
+if args.test:
+    if args.data.endswith('pkl'):
+        import pickle
+        test_texts, test_tags = pickle.load(open(args.data,'rb'))
+    else:
+        test_texts, test_tags = read_wnut(args.data)
+    train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=args.val_frac,random_state=args.seed)
+ 
+else:
+    train_texts, test_texts, train_tags, test_tags = train_test_split(texts, tags, test_size=args.test_frac,random_state=args.seed)
+    train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=args.val_frac/(1-args.test_frac),random_state=args.seed)
 
 unique_tags = sorted(list(set(tag for doc in tags for tag in doc)))
 tag2id = {tag: id for id, tag in enumerate(unique_tags)}
