@@ -100,7 +100,7 @@ def evaluate(model, dataloader, ngram=1):
         label_indices = torch.argmax(outputs.logits,axis=2)
         true_labels += labels[labels!=-100].cpu().numpy().tolist()
         pred_labels += label_indices[labels!=-100].detach().cpu().numpy().tolist()
-    return f1_score(true_labels, pred_labels), accuracy_score(true_labels, pred_labels)
+    return f1_score(true_labels, pred_labels,pos_label=0), accuracy_score(true_labels, pred_labels)
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
