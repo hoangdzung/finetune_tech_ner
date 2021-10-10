@@ -204,7 +204,7 @@ for epoch in range(args.epochs):
         total_loss += loss.item()
         optim.step()
     
-    val_f1, val_acc = evaluate(model, val_loader, args.ngram)
+    val_f1, val_acc = evaluate(model, val_loader, args.ngram, args.norm_eval)
 
     if val_f1 > best_val_f1:
         best_val_f1 = val_f1
@@ -220,6 +220,6 @@ for epoch in range(args.epochs):
 
 model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
 
-test_f1, test_acc = evaluate(model, test_loader, args.ngram)
+test_f1, test_acc = evaluate(model, test_loader, args.ngram,args.norm_eval)
 print(test_f1, test_acc)
     
