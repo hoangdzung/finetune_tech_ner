@@ -17,7 +17,7 @@ import argparse
 import json
 import pandas as pd
 import os 
-from sklearn.metrics import f1_score,accuracy_score
+from sklearn.metrics import f1_score,accuracy_score, recall_score, precision_score
 from data_utils import read_wnut, WNUTDataset,encode_tags_masks
  
 
@@ -116,7 +116,9 @@ def evaluate(model, dataloader, ngram=1, norm_eval=True, low_level=True):
         else:
             true_labels += true_labels_ 
             pred_labels += pred_labels_ 
-    return f1_score(true_labels, pred_labels,pos_label=0), accuracy_score(true_labels, pred_labels)
+    return f1_score(true_labels, pred_labels,pos_label=0),
+        recall_score(true_labels, pred_labels,pos_label=0),
+        precision_call(true_labels, pred_labels,pos_label=0) 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
@@ -208,7 +210,7 @@ for epoch in range(args.epochs):
         total_loss += loss.item()
         optim.step()
     
-    val_f1, val_acc = evaluate(model, val_loader, args.ngram, args.norm_eval, args.low_level)
+    val_f1, val_rc, val_pr = evaluate(model, val_loader, args.ngram, args.norm_eval, args.low_level)
 
     if val_f1 > best_val_f1:
         best_val_f1 = val_f1
@@ -217,6 +219,7 @@ for epoch in range(args.epochs):
     else:
         n_wo_progress+=1
     print("Epoch {}, train loss {}, val_f1 {} , best val_f1 {}, #step without progress {}".format(epoch, total_loss, val_f1, best_val_f1, n_wo_progress))
+    print(val_rc, val_pr)
     if n_wo_progress > args.early_step:
         print("Early stop")
         break
@@ -224,6 +227,6 @@ for epoch in range(args.epochs):
 
 model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
 
-test_f1, test_acc = evaluate(model, test_loader, args.ngram,args.norm_eval, args.low_level)
-print(test_f1, test_acc)
+test_f1, test_rc, test_pr = evaluate(model, test_loader, args.ngram,args.norm_eval, args.low_level)
+print(test_f1, test_rc, test_pr)
     
