@@ -61,9 +61,9 @@ class NGramBertForTokenClassification(BertForTokenClassification):
 
         sequence_output = outputs[0]
         sequence_output = self.dropout(sequence_output)
-        logits = self.classifier(sequence_output)
         if ngram>1:
-            logits = (logits+ torch.roll(logits, -1, 0))/2
+            sequence_output = (sequence_output+ torch.roll(sequence_output, -1, 1))/2
+        logits = self.classifier(sequence_output)
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
