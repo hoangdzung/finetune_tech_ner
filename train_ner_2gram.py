@@ -38,7 +38,8 @@ class NGramBertForTokenClassification(BertForTokenClassification):
         output_attentions=None,
         output_hidden_states=None,
         return_dict=None,
-        ngram=1
+        ngram=1,
+        low_level=True
         ):
         r"""
         labels (:obj:`torch.LongTensor` of shape :obj:`(batch_size, sequence_length)`, `optional`):
@@ -61,9 +62,11 @@ class NGramBertForTokenClassification(BertForTokenClassification):
 
         sequence_output = outputs[0]
         sequence_output = self.dropout(sequence_output)
-        if ngram>1:
+        if ngram>1 and low_level:
             sequence_output = (sequence_output+ torch.roll(sequence_output, -1, 1))/2
         logits = self.classifier(sequence_output)
+        if ngram>1 and not low_level:
+            logits = (logits+ torch.roll(logits, -1, 1))/2
         loss = None
         if labels is not None:
             loss_fct = CrossEntropyLoss()
@@ -89,7 +92,7 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             attentions=outputs.attentions,
         )
 
-def evaluate(model, dataloader, ngram=1, eval_norm=True):
+def evaluate(model, dataloader, ngram=1, norm_eval=True):
     model.eval()
     true_labels, pred_labels = [], []
     for batch in tqdm(dataloader):
@@ -100,12 +103,12 @@ def evaluate(model, dataloader, ngram=1, eval_norm=True):
         label_indices = torch.argmax(outputs.logits,axis=2)
         true_labels_ = labels[labels!=-100].cpu().numpy().tolist()
         pred_labels_ = label_indices[labels!=-100].detach().cpu().numpy().tolist()
-        if not eval_norm and ngram==1:
+        if not norm_eval and ngram==1:
             for i in range(len(true_labels_)-1):
                 if true_labels_[i]==0 and true_labels_[i+1]==0:
                     true_labels.append(0)
                 else:
-                    true_labels.append(0)
+                    true_labels.append(1)
                 if pred_labels_[i] == 0 and pred_labels_[i+1] == 0:
                     pred_labels.append(0)
                 else:
@@ -130,6 +133,7 @@ parser.add_argument("--ngram", type=int, default=1)
 parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
 parser.add_argument("--norm_eval", action="store_true")
+parser.add_argument("--low_level", action="store_true")
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
