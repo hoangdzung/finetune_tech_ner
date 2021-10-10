@@ -92,14 +92,14 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             attentions=outputs.attentions,
         )
 
-def evaluate(model, dataloader, ngram=1, norm_eval=True):
+def evaluate(model, dataloader, ngram=1, norm_eval=True, low_level=True):
     model.eval()
     true_labels, pred_labels = [], []
     for batch in tqdm(dataloader):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
         labels = batch['labels'].to(device)
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=ngram)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=ngram, low_level=low_level)
         label_indices = torch.argmax(outputs.logits,axis=2)
         true_labels_ = labels[labels!=-100].cpu().numpy().tolist()
         pred_labels_ = label_indices[labels!=-100].detach().cpu().numpy().tolist()
@@ -157,11 +157,11 @@ else:
 print("There are {} sentences in the dataset".format(len(texts)))
 
 if args.test:
-    if args.data.endswith('pkl'):
+    if args.test.endswith('pkl'):
         import pickle
-        test_texts, test_tags = pickle.load(open(args.data,'rb'))
+        test_texts, test_tags = pickle.load(open(args.test,'rb'))
     else:
-        test_texts, test_tags = read_wnut(args.data)
+        test_texts, test_tags = read_wnut(args.test)
     train_texts, val_texts, train_tags, val_tags = train_test_split(texts, tags, test_size=args.val_frac,random_state=args.seed)
  
 else:
@@ -202,13 +202,13 @@ for epoch in range(args.epochs):
         input_ids = batch['input_ids'].to(device)
         attention_mask = batch['attention_mask'].to(device)
         labels = batch['labels'].to(device)
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=args.ngram)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=args.ngram, low_level=args.low_level)
         loss = outputs[0]
         loss.backward()
         total_loss += loss.item()
         optim.step()
     
-    val_f1, val_acc = evaluate(model, val_loader, args.ngram, args.norm_eval)
+    val_f1, val_acc = evaluate(model, val_loader, args.ngram, args.norm_eval, args.low_level)
 
     if val_f1 > best_val_f1:
         best_val_f1 = val_f1
@@ -224,6 +224,6 @@ for epoch in range(args.epochs):
 
 model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
 
-test_f1, test_acc = evaluate(model, test_loader, args.ngram,args.norm_eval)
+test_f1, test_acc = evaluate(model, test_loader, args.ngram,args.norm_eval, args.low_level)
 print(test_f1, test_acc)
     
