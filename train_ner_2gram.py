@@ -98,8 +98,22 @@ def evaluate(model, dataloader, ngram=1):
         labels = batch['labels'].to(device)
         outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=ngram)
         label_indices = torch.argmax(outputs.logits,axis=2)
-        true_labels += labels[labels!=-100].cpu().numpy().tolist()
-        pred_labels += label_indices[labels!=-100].detach().cpu().numpy().tolist()
+        true_labels_ = labels[labels!=-100].cpu().numpy().tolist()
+        pred_labels_ = label_indices[labels!=-100].detach().cpu().numpy().tolist()
+        if ngram==2:
+            true_labels += true_labels_ 
+            pred_labels += pred_labels_ 
+        else:
+            for i in range(len(true_labels_)-1):
+                if true_labels_[i]==0 and true_labels_[i+1]==0:
+                    true_labels.append(0)
+                else:
+                    true_labels.append(0)
+                if pred_labels_[i] == 0 and pred_labels_[i+1] == 0:
+                    pred_labels.append(0)
+                else:
+                    pred_labels.append(1)
+
     return f1_score(true_labels, pred_labels,pos_label=0), accuracy_score(true_labels, pred_labels)
 
 parser = argparse.ArgumentParser()
@@ -175,6 +189,7 @@ test_loader = DataLoader(test_dataset, batch_size=args.batch_size)
 optim = AdamW(model.parameters(), lr=args.lr)
 
 best_val_f1 = 0
+n_wo_progress = 0
 for epoch in range(args.epochs):
     model.train()
     total_loss = 0
