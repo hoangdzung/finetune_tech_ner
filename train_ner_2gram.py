@@ -89,7 +89,7 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             attentions=outputs.attentions,
         )
 
-def evaluate(model, dataloader, ngram=1):
+def evaluate(model, dataloader, ngram=1, eval_norm=True):
     model.eval()
     true_labels, pred_labels = [], []
     for batch in tqdm(dataloader):
@@ -100,10 +100,7 @@ def evaluate(model, dataloader, ngram=1):
         label_indices = torch.argmax(outputs.logits,axis=2)
         true_labels_ = labels[labels!=-100].cpu().numpy().tolist()
         pred_labels_ = label_indices[labels!=-100].detach().cpu().numpy().tolist()
-        if ngram==2:
-            true_labels += true_labels_ 
-            pred_labels += pred_labels_ 
-        else:
+        if not eval_norm and ngram==1:
             for i in range(len(true_labels_)-1):
                 if true_labels_[i]==0 and true_labels_[i+1]==0:
                     true_labels.append(0)
@@ -113,7 +110,9 @@ def evaluate(model, dataloader, ngram=1):
                     pred_labels.append(0)
                 else:
                     pred_labels.append(1)
-
+        else:
+            true_labels += true_labels_ 
+            pred_labels += pred_labels_ 
     return f1_score(true_labels, pred_labels,pos_label=0), accuracy_score(true_labels, pred_labels)
 
 parser = argparse.ArgumentParser()
@@ -130,6 +129,7 @@ parser.add_argument("--val_frac",type=float, default=0.2)
 parser.add_argument("--ngram", type=int, default=1)
 parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
+parser.add_argument("--norm_eval", action="store_true")
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
