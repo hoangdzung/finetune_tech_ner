@@ -118,7 +118,7 @@ def evaluate(model, dataloader, ngram=1, norm_eval=True, low_level=True):
             pred_labels += pred_labels_ 
     return f1_score(true_labels, pred_labels,pos_label=0),\
         recall_score(true_labels, pred_labels,pos_label=0),\
-        precision_call(true_labels, pred_labels,pos_label=0) 
+        precision_score(true_labels, pred_labels,pos_label=0) 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
