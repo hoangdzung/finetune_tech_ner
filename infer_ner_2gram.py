@@ -111,6 +111,6 @@ while(True):
 
     encodings = tokenizer([tokens], is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
     outputs = model(torch.tensor(encodings['input_ids']).to(device), attention_mask=torch.tensor(encodings['attention_mask']).to(device), ngram=args.ngram, low_level=args.low_level)
-    label_indices = torch.argmax(outputs.logits,axis=2)[0][1:-1]
-    tokens = tokenizer.convert_ids_to_tokens(encodings.input_ids[0],convert_ids_to_tokens=True)
+    label_indices = torch.argmax(outputs.logits,axis=2)[0][1:-1].cpu().numpy().tolist()
+    tokens = tokenizer.convert_ids_to_tokens(encodings.input_ids[0],True)
     print(list(zip(tokens,label_indices)))
