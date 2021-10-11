@@ -165,7 +165,7 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
 
-        return TokenClassifierOutput(
+        return TwoHeadTokenClassifierOutput(
             loss1=loss1,
             loss2=loss2,
             logits1=logits1,
@@ -174,33 +174,36 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             attentions=outputs.attentions,
         )
 
-# def evaluate(model, dataloader, ngram=1, norm_eval=True, low_level=True):
-#     model.eval()
-#     true_labels, pred_labels = [], []
-#     for batch in tqdm(dataloader):
-#         input_ids = batch['input_ids'].to(device)
-#         attention_mask = batch['attention_mask'].to(device)
-#         labels = batch['labels'].to(device)
-#         outputs = model(input_ids, attention_mask=attention_mask, labels=labels, ngram=ngram, low_level=low_level)
-#         label_indices = torch.argmax(outputs.logits,axis=2)
-#         true_labels_ = labels[labels!=-100].cpu().numpy().tolist()
-#         pred_labels_ = label_indices[labels!=-100].detach().cpu().numpy().tolist()
-#         if not norm_eval and ngram==1:
-#             for i in range(len(true_labels_)-1):
-#                 if true_labels_[i]==0 and true_labels_[i+1]==0:
-#                     true_labels.append(0)
-#                 else:
-#                     true_labels.append(1)
-#                 if pred_labels_[i] == 0 and pred_labels_[i+1] == 0:
-#                     pred_labels.append(0)
-#                 else:
-#                     pred_labels.append(1)
-#         else:
-#             true_labels += true_labels_ 
-#             pred_labels += pred_labels_ 
-#     return f1_score(true_labels, pred_labels,pos_label=0),\
-#         recall_score(true_labels, pred_labels,pos_label=0),\
-#         precision_score(true_labels, pred_labels,pos_label=0) 
+def evaluate(model, dataloader):
+    model.eval()
+    true_labels1, pred_labels1 = [], []
+    true_labels2, pred_labels2 = [], []
+    for batch in tqdm(dataloader):
+        input_ids = batch['input_ids'].to(device)
+        attention_mask = batch['attention_mask'].to(device)
+        labels1 = batch['labels1'].to(device)
+        labels2 = batch['labels2'].to(device)
+        outputs = model(input_ids, attention_mask=attention_mask, labels1=labels1, labels2=labels2)
+        
+        label_indices1 = torch.argmax(outputs.logits1,axis=2)
+        true_labels_1 = labels1[labels1!=-100].cpu().numpy().tolist()
+        pred_labels_1 = label_indices1[labels1!=-100].detach().cpu().numpy().tolist()
+
+        label_indices2 = torch.argmax(outputs.logits2,axis=2)
+        true_labels_2 = labels2[labels2!=-100].cpu().numpy().tolist()
+        pred_labels_2 = label_indices2[labels2!=-100].detach().cpu().numpy().tolist()
+
+        true_labels1 += true_labels_1
+        pred_labels1 += pred_labels_1 
+        
+        true_labels2 += true_labels_2
+        pred_labels2 += pred_labels_2 
+    return (f1_score(true_labels1, pred_labels1,pos_label=0),\
+        recall_score(true_labels1, pred_labels1,pos_label=0),\
+        precision_score(true_labels1, pred_labels1,pos_label=0)),\
+            (f1_score(true_labels2, pred_labels2,pos_label=0),\
+        recall_score(true_labels2, pred_labels2,pos_label=0),\
+        precision_score(true_labels2, pred_labels2,pos_label=0)) 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
@@ -213,11 +216,9 @@ parser.add_argument("--save_dir")
 parser.add_argument("--pretrained")
 parser.add_argument("--test_frac",type=float, default=0.2)
 parser.add_argument("--val_frac",type=float, default=0.2)
-parser.add_argument("--ngram", type=int, default=1)
+parser.add_argument("--weight", type=float, default=1.0)
 parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
-parser.add_argument("--norm_eval", action="store_true")
-parser.add_argument("--low_level", action="store_true")
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -252,7 +253,7 @@ else:
     train_texts, test_texts, train_tags1, test_tags1, train_tags2, test_tags2 = train_test_split(texts, tags1, tags2, test_size=args.test_frac,random_state=args.seed)
     train_texts, val_texts, train_tags1, val_tags1, train_tags2, val_tags2 = train_test_split(train_texts, train_tags1, train_tags2, test_size=args.val_frac/(1-args.test_frac),random_state=args.seed)
 
-unique_tags = sorted(list(set(tag for doc in tags for tag in doc)))
+unique_tags = sorted(list(set(tag for doc in tags1+tags2 for tag in doc)))
 tag2id = {tag: id for id, tag in enumerate(unique_tags)}
 id2tag = {id: tag for tag, id in tag2id.items()}
 
@@ -295,29 +296,31 @@ for epoch in range(args.epochs):
         outputs = model(input_ids, attention_mask=attention_mask, labels1=labels1, labels2=labels2)
         loss1 = outputs[0]
         loss2 = outputs[1]
-        loss = loss1 +loss2
+        loss = args.weight*loss1 +loss2
         loss.backward()
         total_loss += loss.item()
         optim.step()
-    print(epoch, total_loss)
     
-#     val_f1, val_rc, val_pr = evaluate(model, val_loader, args.ngram, args.norm_eval, args.low_level)
+    (val_f11, val_rc1, val_pr1),(val_f12, val_rc2, val_pr2) = evaluate(model, val_loader, args.ngram, args.norm_eval, args.low_level)
+    val_f1 = (args.weight*val_f11+val_f12)/(1+args.weight)
+    if val_f1 > best_val_f1:
+        best_val_f1 = val_f1
+        n_wo_progress = 0
+        model.save_pretrained(args.save_dir)
+    else:
+        n_wo_progress+=1
+    print("Epoch {}, train loss {}, val_f11 {}, val_f12 {}, val_f1 {} , best val_f1 {}, #step without progress {}"\
+    .format(epoch, total_loss, val_f1, best_val_f1, n_wo_progress))
+    print(val_rc1, val_pr1)
+    print(val_rc2, val_pr2)
+    if n_wo_progress > args.early_step:
+        print("Early stop")
+        break
 
-#     if val_f1 > best_val_f1:
-#         best_val_f1 = val_f1
-#         n_wo_progress = 0
-#         model.save_pretrained(args.save_dir)
-#     else:
-#         n_wo_progress+=1
-#     print("Epoch {}, train loss {}, val_f1 {} , best val_f1 {}, #step without progress {}".format(epoch, total_loss, val_f1, best_val_f1, n_wo_progress))
-#     print(val_rc, val_pr)
-#     if n_wo_progress > args.early_step:
-#         print("Early stop")
-#         break
 
+model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
 
-# model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
-
-# test_f1, test_rc, test_pr = evaluate(model, test_loader, args.ngram,args.norm_eval, args.low_level)
-# print(test_f1, test_rc, test_pr)
+(test_f11, test_rc1, test_pr1),(test_f12, test_rc2, test_pr2) = evaluate(model, test_loader)
+print(test_f11, test_rc1, test_pr1)
+print(test_f12, test_rc2, test_pr2)
     
