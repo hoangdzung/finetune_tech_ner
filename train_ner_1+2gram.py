@@ -54,7 +54,7 @@ class WNUTDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
         item['labels1'] = torch.tensor(self.labels1[idx])
-        item['labels2'] = torch.tensor(self.labels1[idx])
+        item['labels2'] = torch.tensor(self.labels2[idx])
         return item
 
     def __len__(self):
@@ -93,8 +93,8 @@ class NGramBertForTokenClassification(BertForTokenClassification):
 
     def __init__(self, config):
         super().__init__(config)
-        self.classifier2 = nn.Linear(config.hidden_size, config.num_labels)
-        self.init_weights()
+        #self.classifier2 = nn.Linear(config.hidden_size, config.num_labels)
+        #self.init_weights()
 
     def forward(
         self,
@@ -131,10 +131,10 @@ class NGramBertForTokenClassification(BertForTokenClassification):
 
         sequence_output = outputs[0]
         sequence_output1 = self.dropout(sequence_output)
-        sequence_output2 = (sequence_output1+ torch.roll(sequence_output1, -1, 1))/2
+        sequence_output2 = self.dropout((sequence_output+ torch.roll(sequence_output, -1, 1))/2)
 
         logits1 = self.classifier(sequence_output1)
-        logits2 = self.classifier2(sequence_output2)
+        logits2 = self.classifier(sequence_output2)
 
         loss1, loss2 = None, None
         if labels1 is not None:
@@ -142,25 +142,25 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             # Only keep active parts of the loss
             if attention_mask is not None:
                 active_loss = attention_mask.view(-1) == 1
-                active_logits = logits1.view(-1, self.num_labels)
-                active_labels = torch.where(
+                active_logits1 = logits1.view(-1, self.num_labels)
+                active_labels1 = torch.where(
                     active_loss, labels1.view(-1), torch.tensor(loss_fct.ignore_index).type_as(labels1)
                 )
-                loss1 = loss_fct(active_logits, active_labels)
+                loss1 = loss_fct(active_logits1, active_labels1)
             else:
-                loss1 = loss_fct(logits.view(-1, self.num_labels), labels1.view(-1))
+                loss1 = loss_fct(logits1.view(-1, self.num_labels), labels1.view(-1))
         if labels2 is not None:
-            loss_fct = CrossEntropyLoss()
+            loss_fct2 = CrossEntropyLoss()
             # Only keep active parts of the loss
             if attention_mask is not None:
                 active_loss = attention_mask.view(-1) == 1
-                active_logits = logits1.view(-1, self.num_labels)
-                active_labels = torch.where(
+                active_logits2 = logits2.view(-1, self.num_labels)
+                active_labels2 = torch.where(
                     active_loss, labels2.view(-1), torch.tensor(loss_fct.ignore_index).type_as(labels2)
                 )
-                loss2 = loss_fct(active_logits, active_labels)
+                loss2 = loss_fct2(active_logits2, active_labels2)
             else:
-                loss2 = loss_fct(logits.view(-1, self.num_labels), labels2.view(-1))
+                loss2 = loss_fct2(logits2.view(-1, self.num_labels), labels2.view(-1))
         if not return_dict:
             output = (logits,) + outputs[2:]
             return ((loss,) + output) if loss is not None else output
@@ -216,7 +216,8 @@ parser.add_argument("--save_dir")
 parser.add_argument("--pretrained")
 parser.add_argument("--test_frac",type=float, default=0.2)
 parser.add_argument("--val_frac",type=float, default=0.2)
-parser.add_argument("--weight", type=float, default=1.0)
+parser.add_argument("--weight1", type=float, default=1.0)
+parser.add_argument("--weight2", type=float, default=1.0)
 parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
 args = parser.parse_args()
@@ -280,8 +281,8 @@ train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=Tru
 val_loader = DataLoader(val_dataset, batch_size=args.batch_size)
 test_loader = DataLoader(test_dataset, batch_size=args.batch_size)
 
+#optim = AdamW(list(model.classifier.parameters())+list(model.classifier2.parameters()), lr=args.lr)
 optim = AdamW(model.parameters(), lr=args.lr)
-
 best_val_f1 = 0
 n_wo_progress = 0
 for epoch in range(args.epochs):
@@ -296,13 +297,13 @@ for epoch in range(args.epochs):
         outputs = model(input_ids, attention_mask=attention_mask, labels1=labels1, labels2=labels2)
         loss1 = outputs[0]
         loss2 = outputs[1]
-        loss = args.weight*loss1 +loss2
+        loss = args.weight1*loss1 +args.weight2*loss2
         loss.backward()
         total_loss += loss.item()
         optim.step()
     
-    (val_f11, val_rc1, val_pr1),(val_f12, val_rc2, val_pr2) = evaluate(model, val_loader, args.ngram, args.norm_eval, args.low_level)
-    val_f1 = (args.weight*val_f11+val_f12)/(1+args.weight)
+    (val_f11, val_rc1, val_pr1),(val_f12, val_rc2, val_pr2) = evaluate(model, val_loader)
+    val_f1 = (args.weight1*val_f11+args.weight2*val_f12)/(args.weight1+args.weight2)
     if val_f1 > best_val_f1:
         best_val_f1 = val_f1
         n_wo_progress = 0
@@ -310,7 +311,7 @@ for epoch in range(args.epochs):
     else:
         n_wo_progress+=1
     print("Epoch {}, train loss {}, val_f11 {}, val_f12 {}, val_f1 {} , best val_f1 {}, #step without progress {}"\
-    .format(epoch, total_loss, val_f1, best_val_f1, n_wo_progress))
+    .format(epoch, total_loss, val_f11, val_f12, val_f1, best_val_f1, n_wo_progress))
     print(val_rc1, val_pr1)
     print(val_rc2, val_pr2)
     if n_wo_progress > args.early_step:
