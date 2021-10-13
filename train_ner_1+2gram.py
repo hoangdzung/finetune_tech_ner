@@ -174,7 +174,8 @@ class NGramBertForTokenClassification(BertForTokenClassification):
             attentions=outputs.attentions,
         )
 
-def evaluate(model, dataloader):
+def evaluate(model, dataloader, tokenizer, text_prediction=False):
+    true_pos_1, true_pos_2, false_pos_1, false_pos_2, false_neg_1, false_neg_2 = set(),set(),set(),set(),set(),set()
     model.eval()
     true_labels1, pred_labels1 = [], []
     true_labels2, pred_labels2 = [], []
@@ -198,12 +199,46 @@ def evaluate(model, dataloader):
         
         true_labels2 += true_labels_2
         pred_labels2 += pred_labels_2 
+        if text_prediction:
+            all_tokens1 = []
+            all_tokens2 = []
+            for input_id in input_ids.cpu().numpy():
+                tokens = tokenizer.convert_ids_to_tokens(input_id)
+                all_tokens1.append(tokens[:])
+                for i in range(len(tokens)-1):
+                    tokens[i] = tokens[i]+" "+tokens[i+1]
+                all_tokens2.append(tokens[:])
+            all_tokens1=np.array(all_tokens1)
+            all_tokens2=np.array(all_tokens2)
+
+            accepted_all_tokens1 = all_tokens1[(labels1!=-100).cpu().numpy()].tolist()
+            accepted_all_tokens2 = all_tokens2[(labels2!=-100).cpu().numpy()].tolist()
+            for true_label1, pred_label1, accepted_all_token1 in zip(true_labels_1, pred_labels_1, accepted_all_tokens1):
+                if true_label1==0:
+                    if pred_label1==0:
+                        true_pos_1.add(accepted_all_token1)
+                    if pred_label1==1:
+                        false_pos_1.add(accepted_all_token1)
+                elif pred_label1==0:
+                    false_neg_1.add(accepted_all_token1)
+
+            for true_label2, pred_label2, accepted_all_token2 in zip(true_labels_2, pred_labels_2, accepted_all_tokens2):
+                if true_label2==0:
+                    if pred_label2==0:
+                        true_pos_2.add(accepted_all_token2)
+                    if pred_label1==1:
+                        false_pos_2.add(accepted_all_token2)
+                elif pred_label1==0:
+                    false_neg_2.add(accepted_all_token2)
+
     return (f1_score(true_labels1, pred_labels1,pos_label=0),\
         recall_score(true_labels1, pred_labels1,pos_label=0),\
         precision_score(true_labels1, pred_labels1,pos_label=0)),\
             (f1_score(true_labels2, pred_labels2,pos_label=0),\
         recall_score(true_labels2, pred_labels2,pos_label=0),\
-        precision_score(true_labels2, pred_labels2,pos_label=0)) 
+        precision_score(true_labels2, pred_labels2,pos_label=0)),\
+        {"unigram":{"true_pos":list(true_pos_1), "false_pos":list(false_pos_1), "false_neg":list(false_neg_1)},\
+            "bigram":{"true_pos":list(true_pos_2), "false_pos":list(false_pos_2), "false_neg":list(false_neg_2)}} 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--data")
@@ -220,6 +255,7 @@ parser.add_argument("--weight1", type=float, default=1.0)
 parser.add_argument("--weight2", type=float, default=1.0)
 parser.add_argument("--seed", type=int, default=123)
 parser.add_argument("--mturk", action="store_true")
+parser.add_argument("--text_prediction")
 args = parser.parse_args()
 
 torch.manual_seed(args.seed)
@@ -302,7 +338,7 @@ for epoch in range(args.epochs):
         total_loss += loss.item()
         optim.step()
     
-    (val_f11, val_rc1, val_pr1),(val_f12, val_rc2, val_pr2) = evaluate(model, val_loader)
+    (val_f11, val_rc1, val_pr1),(val_f12, val_rc2, val_pr2),_ = evaluate(model, val_loader)
     val_f1 = (args.weight1*val_f11+args.weight2*val_f12)/(args.weight1+args.weight2)
     if val_f1 > best_val_f1:
         best_val_f1 = val_f1
@@ -321,7 +357,10 @@ for epoch in range(args.epochs):
 
 model = NGramBertForTokenClassification.from_pretrained(args.save_dir).to(device)
 
-(test_f11, test_rc1, test_pr1),(test_f12, test_rc2, test_pr2) = evaluate(model, test_loader)
+(test_f11, test_rc1, test_pr1),(test_f12, test_rc2, test_pr2), text_prediction = evaluate(model, test_loader, tokenizer, True)
 print(test_f11, test_rc1, test_pr1)
 print(test_f12, test_rc2, test_pr2)
+import json
+with open(args.text_prediction, 'w') as fp:
+    json.dump(text_prediction, fp)
     
