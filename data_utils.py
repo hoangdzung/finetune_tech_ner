@@ -15,6 +15,39 @@ from tqdm import tqdm
 #     nlp = spacy.load("en_core_web_trf")
 #     print("en_core_web_trf loaded")
 
+def offset_to_biluo(data):
+    content = data['content']
+    entities = data['entities']
+
+    tags = []
+    tokens = []
+    prev_start_idx = 0
+    for entity in sorted(entities, key=lambda x: min(x[0],x[1])):
+        start_idx , end_indx = min(entity[:2]), max(entity[:2])
+
+        sub_tokens = content[prev_start_idx:start_idx].split()
+        sub_tags = ['O']*len(sub_tokens)
+        tokens += sub_tokens
+        tags += sub_tags
+
+        sub_tokens = content[start_idx:end_indx].split()
+        if len(sub_tokens)==1:
+            sub_tags = ['U']
+        else:
+            sub_tags = ['I']*len(sub_tokens)
+            sub_tags[0] = 'B'
+            sub_tags[-1] = 'L'
+
+        tokens += sub_tokens
+        tags += sub_tags
+
+        prev_start_idx = end_indx
+    sub_tokens = content[prev_start_idx:].split()
+    sub_tags = ['O']*len(sub_tokens)
+    tokens += sub_tokens
+    tags += sub_tags
+    return tokens, tags
+    
 def read_wnut(file_path, binary_label=True):
     file_path = Path(file_path)
 
