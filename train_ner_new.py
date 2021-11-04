@@ -38,53 +38,52 @@ else:
 
 model.to(device)
 
-if not args.infer_only:
-    model.train()
+model.train()
 
-    train_texts, train_tags = offset_to_biluo(args.train_data)
-    print("There are {} sentences in the train dataset".format(len(texts)))
-    test_texts, test_tags = offset_to_biluo(args.test_data)
-    print("There are {} sentences in the test dataset".format(len(texts)))
-    # train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.2)
+train_texts, train_tags = offset_to_biluo(args.train_data)
+print("There are {} sentences in the train dataset".format(len(texts)))
+test_texts, test_tags = offset_to_biluo(args.test_data)
+print("There are {} sentences in the test dataset".format(len(texts)))
+# train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.2)
 
 
-    unique_tags = 'BILUO'
-    tag2id = {tag: id for id, tag in enumerate(unique_tags)}
-    id2tag = {id: tag for tag, id in tag2id.items()}
+unique_tags = 'BILUO'
+tag2id = {tag: id for id, tag in enumerate(unique_tags)}
+id2tag = {id: tag for tag, id in tag2id.items()}
 
-    train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
-    train_labels = encode_tags_masks(train_tags, train_encodings,tag2id,masks=False)
-    train_encodings.pop("offset_mapping") # we don't want to pass this to the model
-    train_dataset = WNUTDataset(train_encodings, train_labels)
-    # train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
+train_encodings = tokenizer(train_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
+train_labels = encode_tags_masks(train_tags, train_encodings,tag2id,masks=False)
+train_encodings.pop("offset_mapping") # we don't want to pass this to the model
+train_dataset = WNUTDataset(train_encodings, train_labels)
+# train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
-    test_encodings = tokenizer(test_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
-    test_labels = encode_tags_masks(test_tags, train_encodings,tag2id,masks=False)
-    test_encodings.pop("offset_mapping") # we don't want to pass this to the model
-    test_dataset = WNUTDataset(test_encodings, test_labels)
-    # test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
+test_encodings = tokenizer(test_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
+test_labels = encode_tags_masks(test_tags, train_encodings,tag2id,masks=False)
+test_encodings.pop("offset_mapping") # we don't want to pass this to the model
+test_dataset = WNUTDataset(test_encodings, test_labels)
+# test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
-    training_args = TrainingArguments(
-        output_dir='./results',          # output directory
-        num_train_epochs=args.epochs,              # total number of training epochs
-        per_device_train_batch_size=args.batch_size,  # batch size per device during training
-        per_device_eval_batch_size=args.batch_size,   # batch size for evaluation
-        warmup_steps=500,                # number of warmup steps for learning rate scheduler
-        weight_decay=0.01,               # strength of weight decay
-        logging_dir='./logs',            # directory for storing logs
-        logging_steps=10,
-    )
+training_args = TrainingArguments(
+    output_dir='./results',          # output directory
+    num_train_epochs=args.epochs,              # total number of training epochs
+    per_device_train_batch_size=args.batch_size,  # batch size per device during training
+    per_device_eval_batch_size=args.batch_size,   # batch size for evaluation
+    warmup_steps=500,                # number of warmup steps for learning rate scheduler
+    weight_decay=0.01,               # strength of weight decay
+    logging_dir='./logs',            # directory for storing logs
+    logging_steps=10,
+)
 
-    # model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
+# model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased")
 
-    trainer = Trainer(
-        model=model,                         # the instantiated 🤗 Transformers model to be trained
-        args=training_args,                  # training arguments, defined above
-        train_dataset=train_dataset,         # training dataset
-        eval_dataset=test_dataset             # evaluation dataset
-    )
+trainer = Trainer(
+    model=model,                         # the instantiated 🤗 Transformers model to be trained
+    args=training_args,                  # training arguments, defined above
+    train_dataset=train_dataset,         # training dataset
+    eval_dataset=test_dataset             # evaluation dataset
+)
 
-    trainer.train()
+trainer.train()
 
     # optim = AdamW(model.parameters(), lr=args.lr)
 
