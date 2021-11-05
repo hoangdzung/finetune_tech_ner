@@ -58,7 +58,7 @@ train_dataset = WNUTDataset(train_encodings, train_labels)
 # train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
 
 test_encodings = tokenizer(test_texts, is_split_into_words=True, return_offsets_mapping=True, padding=True, truncation=True, max_length=512)
-test_labels = encode_tags_masks(test_tags, train_encodings,tag2id,masks=False)
+test_labels = encode_tags_masks(test_tags, test_encodings,tag2id,masks=False)
 test_encodings.pop("offset_mapping") # we don't want to pass this to the model
 test_dataset = WNUTDataset(test_encodings, test_labels)
 # test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
