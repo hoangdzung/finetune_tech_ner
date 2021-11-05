@@ -53,6 +53,40 @@ def offset_to_biluo(datapath):
         all_tags.append(tags)
     return all_tokens, all_tags
 
+def offset_to_bio(datapath):
+    all_tokens = []
+    all_tags = []
+    for data in json.load(open(datapath)):
+        content = data['content']
+        entities = data['entities']
+
+        tags = []
+        tokens = []
+        prev_start_idx = 0
+        for entity in sorted(entities, key=lambda x: min(x[0],x[1])):
+            start_idx , end_indx = min(entity[:2]), max(entity[:2])
+
+            sub_tokens = content[prev_start_idx:start_idx].split()
+            sub_tags = ['O']*len(sub_tokens)
+            tokens += sub_tokens
+            tags += sub_tags
+
+            sub_tokens = content[start_idx:end_indx].split()
+            sub_tags = ['I']*len(sub_tokens)
+            sub_tags[0] = 'B'
+
+            tokens += sub_tokens
+            tags += sub_tags
+
+            prev_start_idx = end_indx
+        sub_tokens = content[prev_start_idx:].split()
+        sub_tags = ['O']*len(sub_tokens)
+        tokens += sub_tokens
+        tags += sub_tags
+        all_tokens.append(tokens)
+        all_tags.append(tags)
+    return all_tokens, all_tags
+
 def read_wnut(file_path, binary_label=True):
     file_path = Path(file_path)
 

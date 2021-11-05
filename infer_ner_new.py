@@ -22,11 +22,13 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--test_data")
 parser.add_argument("--out")
 parser.add_argument("--pretrained")
+parser.add_argument("--encode_format")
 args = parser.parse_args()
 
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 tokenizer = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
-model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=5)
+num_labels=len(args.encode_format)
+model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=num_labels)
 
 model.to(device)
 
@@ -41,10 +43,10 @@ for text in tqdm(test_texts):
     text = " ".join(text)
     train_encodings = tokenizer.encode(text, return_tensors='pt')
     tokens = tokenizer.convert_ids_to_tokens(train_encodings[0])
-    preds = torch.argmax(model(train_encodings).logits,-1)[0].detach().cpu().numpy().tolist()
+    preds = torch.argmax(model(train_encodings.to(device)).logits,-1)[0].detach().cpu().numpy().tolist()
     tech_terms = ""
     for token, pred in zip(tokens, preds):
-        if pred != 4:
+        if pred != num_labels-1:
             tech_terms+=" "+token 
         elif tech_terms[-1]!='#':
             tech_terms+="#"
