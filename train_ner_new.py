@@ -64,7 +64,7 @@ test_dataset = WNUTDataset(test_encodings, test_labels)
 # test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=True)
 
 training_args = TrainingArguments(
-    output_dir='./results',          # output directory
+    output_dir=args.save_dir,          # output directory
     num_train_epochs=args.epochs,              # total number of training epochs
     per_device_train_batch_size=args.batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.batch_size,   # batch size for evaluation
