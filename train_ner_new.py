@@ -15,12 +15,13 @@ import argparse
 import json 
 import os 
 
-from data_utils import read_wnut, encode_tags_masks, WNUTDataset, offset_to_biluo
+from data_utils import read_wnut, encode_tags_masks, WNUTDataset, offset_to_biluo, offset_to_bio
 from sklearn.model_selection import train_test_split
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--train_data")
 parser.add_argument("--test_data")
+parser.add_argument("--encode_format")
 parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--lr", type=float, default=5e-5)
 parser.add_argument("--epochs", type=int, default=10)
@@ -32,9 +33,9 @@ args = parser.parse_args()
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 tokenizer = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
 if args.pretrained is not None:
-    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=5)
+    model = AutoModelForTokenClassification.from_pretrained(args.pretrained, num_labels=len(args.encode_format))
 else:
-    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=5)
+    model = AutoModelForTokenClassification.from_pretrained('allenai/scibert_scivocab_uncased', num_labels=len(args.encode_format))
 
 model.to(device)
 
@@ -47,7 +48,7 @@ print("There are {} sentences in the test dataset".format(len(test_tags)))
 # train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.2)
 
 
-unique_tags = 'BILUO'
+unique_tags = args.encode_format
 tag2id = {tag: id for id, tag in enumerate(unique_tags)}
 id2tag = {id: tag for tag, id in tag2id.items()}
 
