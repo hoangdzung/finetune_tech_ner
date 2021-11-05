@@ -33,11 +33,12 @@ model.to(device)
 model.eval()
 
 test_texts, test_tags = offset_to_biluo(args.test_data)
-print("There are {} sentences in the test dataset".format(len(texts)))
+print("There are {} sentences in the test dataset".format(len(test_tags)))
 # train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.2)
 
 predictions = []
 for text in tqdm(test_texts):
+    text = " ".join(text)
     train_encodings = tokenizer.encode(text, return_tensors='pt')
     tokens = tokenizer.convert_ids_to_tokens(train_encodings[0])
     preds = torch.argmax(model(train_encodings).logits,-1)[0].detach().cpu().numpy().tolist()

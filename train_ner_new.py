@@ -41,9 +41,9 @@ model.to(device)
 model.train()
 
 train_texts, train_tags = offset_to_biluo(args.train_data)
-print("There are {} sentences in the train dataset".format(len(texts)))
+print("There are {} sentences in the train dataset".format(len(train_tags)))
 test_texts, test_tags = offset_to_biluo(args.test_data)
-print("There are {} sentences in the test dataset".format(len(texts)))
+print("There are {} sentences in the test dataset".format(len(test_tags)))
 # train_texts, val_texts, train_tags, val_tags = train_test_split(train_texts, train_tags, test_size=.2)
 
 
